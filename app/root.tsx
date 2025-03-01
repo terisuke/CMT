@@ -1,5 +1,5 @@
 import { cssBundleHref } from "@remix-run/css-bundle";
-import { json, type LinksFunction } from "@remix-run/node";
+import { json, type LinksFunction, LoaderFunctionArgs } from "@remix-run/node";
 import {
   Links,
   LiveReload,
@@ -7,16 +7,18 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
+  useLoaderData,
 } from "@remix-run/react";
-import tailwindStyles from "~/tailwind.css?url";
 import { AuthProvider } from "~/context/auth";
+import tailwindStyles from "~/tailwind.css?url";
 
 export const links: LinksFunction = () => [
   { rel: "stylesheet", href: tailwindStyles },
   ...(cssBundleHref ? [{ rel: "stylesheet", href: cssBundleHref }] : []),
 ];
 
-export function loader() {
+// Loaderでサーバー側のENVを取得
+export async function loader({ request }: LoaderFunctionArgs) {
   return json({
     ENV: {
       SUPABASE_URL: process.env.SUPABASE_URL,
@@ -26,6 +28,9 @@ export function loader() {
 }
 
 export default function App() {
+  // ブラウザ側でuseLoaderData()を使ってJSONを取得
+  const data = useLoaderData<typeof loader>();
+
   return (
     <html lang="ja">
       <head>
@@ -35,9 +40,18 @@ export default function App() {
         <Links />
       </head>
       <body>
+        {/* 認証コンテキスト */}
         <AuthProvider>
           <Outlet />
         </AuthProvider>
+
+        {/* ENVをwindow.ENVに埋め込む */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.ENV = ${JSON.stringify(data.ENV)};`,
+          }}
+        />
+
         <ScrollRestoration />
         <Scripts />
         <LiveReload />
