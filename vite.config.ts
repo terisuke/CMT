@@ -14,13 +14,8 @@ declare module "@remix-run/node" {
 
 export default defineConfig({
   server: {
-    // 例: Viteの開発サーバをポート3000で起動する
-    port: 3000,
-    hmr: {
-      host: "localhost",
-      port: 5174, // 任意の空きポートを指定
-      protocol: "ws"
-    }
+    port: 5173,
+    host: "0.0.0.0",
   },
   plugins: [
     remix({
