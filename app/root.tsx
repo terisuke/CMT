@@ -4,10 +4,20 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
+  useLoaderData,
 } from "@remix-run/react";
-import type { LinksFunction } from "@remix-run/node";
-
+import type { LinksFunction, LoaderFunction } from "@remix-run/node";
 import "./tailwind.css";
+
+// ここにLoaderFunctionを追加
+export const loader: LoaderFunction = async () => {
+  return {
+    ENV: {
+      SUPABASE_URL: process.env.SUPABASE_URL,
+      SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY,
+    }
+  };
+};
 
 export const links: LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -41,5 +51,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  return <Outlet />;
+  const data = useLoaderData<typeof loader>();
+  
+  return (
+    <>
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `window.ENV = ${JSON.stringify(data.ENV)}`,
+        }}
+      />
+      <Outlet />
+    </>
+  );
 }
