@@ -16,15 +16,8 @@ export default function Index() {
     setError(null);
 
     try {
-      // ログイン処理 (サインアップは Form アクションで処理)
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
-
-      // ログイン成功
       navigate('/dashboard');
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'ログインに失敗しました';
@@ -107,7 +100,7 @@ export default function Index() {
               </div>
             </Form>
           ) : (
-            <form onSubmit={handleLogin} className="space-y-6">
+            <form method="post" onSubmit={handleLogin} className="space-y-6">
               {error && (
                 <div className="bg-red-50 p-4 rounded-md text-red-600 text-sm">
                   {error}
