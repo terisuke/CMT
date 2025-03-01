@@ -1,9 +1,36 @@
-import { createClient } from '@supabase/supabase-js';
+import { createServerClient } from '@supabase/ssr';
+import { Database } from '~/types/database';
 
-if (!process.env.SUPABASE_URL) throw new Error('SUPABASE_URL is required');
-if (!process.env.SUPABASE_ANON_KEY) throw new Error('SUPABASE_ANON_KEY is required');
+// Cookieパーサーヘルパー
+function parseCookies(cookieHeader: string | null) {
+  if (!cookieHeader) return {};
+  return Object.fromEntries(
+    cookieHeader.split(';').map(cookie => {
+      const [name, ...rest] = cookie.split('=');
+      return [name.trim(), rest.join('=')];
+    })
+  );
+}
 
-export const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY
-);
+// サーバーサイドで使用するSupabaseクライアントを作成する関数
+export function createServerSupabaseClient(request: Request) {
+  const cookieHeader = request.headers.get('Cookie');
+  
+  return createServerClient<Database>(
+    process.env.SUPABASE_URL!,
+    process.env.SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name) {
+          return parseCookies(cookieHeader)[name];
+        },
+        set(_name, _value, _options) {
+          // Remix will handle setting cookies
+        },
+        remove(_name, _options) {
+          // Remix will handle removing cookies
+        },
+      },
+    }
+  );
+}
