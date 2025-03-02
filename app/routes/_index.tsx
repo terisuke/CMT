@@ -1,8 +1,9 @@
-import { useState } from 'react';
-import { useNavigate, Form } from '@remix-run/react';
+import { Form, useNavigate, useSearchParams } from '@remix-run/react';
+import { useEffect, useState } from 'react';
 import { supabase } from '~/utils/supabase.client';
 
 export default function Index() {
+  const [searchParams] = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -10,13 +11,23 @@ export default function Index() {
   const [isSignUp, setIsSignUp] = useState(false);
   const navigate = useNavigate();
 
+  // URLパラメータからサインアップタブを自動選択
+  useEffect(() => {
+    if (searchParams.get('signup') === 'true') {
+      setIsSignUp(true);
+    }
+  }, [searchParams]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { error } = await supabase.auth.signInWithPassword({ 
+        email, 
+        password
+      });
       if (error) throw error;
       navigate('/dashboard');
     } catch (err: unknown) {

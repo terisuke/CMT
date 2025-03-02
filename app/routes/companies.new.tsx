@@ -105,7 +105,7 @@ export default function NewCompany() {
                 type="text"
                 defaultValue={actionData?.values?.name || ""}
                 required
-                className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${
+                className={`mt-1 block w-full h-10 py-2 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${
                   actionData?.errors?.name ? "border-red-300" : ""
                 }`}
               />
@@ -123,7 +123,7 @@ export default function NewCompany() {
                 name="businessType"
                 type="text"
                 defaultValue={actionData?.values?.businessType || ""}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                className="mt-1 block w-full h-10 py-2 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
               />
             </div>
             
@@ -136,7 +136,7 @@ export default function NewCompany() {
                 name="representative"
                 type="text"
                 defaultValue={actionData?.values?.representative || ""}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                className="mt-1 block w-full h-10 py-2 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
               />
             </div>
             
@@ -149,7 +149,7 @@ export default function NewCompany() {
                 name="establishedDate"
                 type="date"
                 defaultValue={actionData?.values?.establishedDate || ""}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                className="mt-1 block w-full h-10 py-2 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
               />
             </div>
             
@@ -162,7 +162,7 @@ export default function NewCompany() {
                 name="address"
                 type="text"
                 defaultValue={actionData?.values?.address || ""}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                className="mt-1 block w-full h-10 py-2 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
               />
             </div>
             
@@ -175,7 +175,7 @@ export default function NewCompany() {
                 name="phone"
                 type="text"
                 defaultValue={actionData?.values?.phone || ""}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                className="mt-1 block w-full h-10 py-2 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
               />
             </div>
             

@@ -45,6 +45,9 @@ export async function action({ request }: ActionFunctionArgs) {
     const { data, error } = await supabaseClient.auth.signUp({
       email,
       password,
+      options: {
+        emailRedirectTo: process.env.PUBLIC_URL ? `${process.env.PUBLIC_URL}/dashboard` : `${request.headers.get('origin')}/dashboard`
+      }
     });
     
     console.log("Signup result:", { data, error });

@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { LoaderFunctionArgs, json, redirect } from "@remix-run/node";
-import { useLoaderData, useNavigate } from "@remix-run/react";
+import { LoaderFunctionArgs, ActionFunctionArgs, json, redirect } from "@remix-run/node";
+import { useLoaderData, useNavigate, Form, useSubmit } from "@remix-run/react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 import AppLayout from "~/components/AppLayout";
@@ -66,10 +66,65 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   });
 }
 
+export async function action({ request, params }: ActionFunctionArgs) {
+  const supabase = createServerSupabaseClient(request);
+  const { data: { session } } = await supabase.auth.getSession();
+  
+  if (!session?.user) {
+    return redirect("/");
+  }
+  
+  const companyId = params.id;
+  if (!companyId) {
+    return redirect("/dashboard");
+  }
+  
+  const formData = await request.formData();
+  const actionType = formData.get("_action") as string;
+  
+  if (actionType === "deleteTransaction") {
+    const transactionId = formData.get("transactionId") as string;
+    
+    if (!transactionId) {
+      return json({
+        success: false,
+        error: "取引IDが指定されていません"
+      });
+    }
+    
+    // 取引を削除
+    const { error } = await supabase
+      .from('transactions')
+      .delete()
+      .eq('id', transactionId)
+      .eq('company_id', companyId);
+    
+    if (error) {
+      return json({
+        success: false,
+        error: "取引の削除に失敗しました"
+      });
+    }
+    
+    return json({
+      success: true,
+      error: null
+    });
+  }
+  
+  return json({
+    success: false,
+    error: "不明なアクションタイプです"
+  });
+}
+
 export default function TransactionsList() {
   const { company, transactions, error } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
+  const submit = useSubmit();
   const [filter, setFilter] = useState<string>('all');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
   
   // 表示する取引をフィルタリング
   const filteredTransactions = transactions.filter(
@@ -96,6 +151,34 @@ export default function TransactionsList() {
       case 'liability': return 'bg-yellow-100 text-yellow-800';
       default: return 'bg-gray-100 text-gray-800';
     }
+  };
+  
+  // 削除ダイアログを表示
+  const openDeleteModal = (transaction: Transaction) => {
+    setTransactionToDelete(transaction);
+    setShowDeleteModal(true);
+  };
+  
+  // 削除ダイアログを閉じる
+  const closeDeleteModal = () => {
+    setShowDeleteModal(false);
+    setTransactionToDelete(null);
+  };
+  
+  // 取引を削除
+  const handleDelete = () => {
+    if (!transactionToDelete) return;
+    
+    const formData = new FormData();
+    formData.append("_action", "deleteTransaction");
+    formData.append("transactionId", transactionToDelete.id);
+    
+    submit(formData, {
+      method: "post",
+      replace: true
+    });
+    
+    closeDeleteModal();
   };
   
   return (
@@ -215,16 +298,22 @@ export default function TransactionsList() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <button 
+                        onClick={() => navigate(`/companies/${company?.id}/transactions/${transaction.id}`)}
+                        className="text-blue-600 hover:text-blue-900 mr-3"
+                      >
+                        詳細
+                      </button>
+                      <button 
                         onClick={() => navigate(`/companies/${company?.id}/transactions/${transaction.id}/edit`)}
-                        className="text-blue-600 hover:text-blue-900 mr-4"
+                        className="text-gray-600 hover:text-gray-900 mr-3"
                       >
                         編集
                       </button>
                       <button 
-                        onClick={() => navigate(`/companies/${company?.id}/transactions/${transaction.id}`)}
-                        className="text-gray-600 hover:text-gray-900"
+                        onClick={() => openDeleteModal(transaction)}
+                        className="text-red-600 hover:text-red-900"
                       >
-                        詳細
+                        削除
                       </button>
                     </td>
                   </tr>
@@ -252,6 +341,50 @@ export default function TransactionsList() {
           </div>
         )}
       </div>
+      
+      {/* 削除確認モーダル */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">取引の削除</h3>
+            <p className="text-sm text-gray-500">
+              本当に以下の取引を削除しますか？この操作は取り消せません。
+            </p>
+            {transactionToDelete && (
+              <div className="mt-4 bg-gray-50 p-4 rounded-md">
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="font-medium">日付：</div>
+                  <div>{format(new Date(transactionToDelete.date), 'yyyy/MM/dd', { locale: ja })}</div>
+                  <div className="font-medium">勘定科目：</div>
+                  <div>{transactionToDelete.account}</div>
+                  <div className="font-medium">金額：</div>
+                  <div>{transactionToDelete.amount.toLocaleString()} 円</div>
+                  <div className="font-medium">タイプ：</div>
+                  <div>
+                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getTypeColorClass(transactionToDelete.type)}`}>
+                      {getTypeLabel(transactionToDelete.type)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+            <div className="mt-6 flex justify-end space-x-3">
+              <button
+                onClick={closeDeleteModal}
+                className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={handleDelete}
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+              >
+                削除する
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AppLayout>
   );
 }
