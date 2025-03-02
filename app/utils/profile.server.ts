@@ -15,7 +15,6 @@ function parseCookies(cookieHeader: string | null) {
 export async function createProfile(
   request: Request,
   userId: string,
-  name: string = '',
   role: 'user' | 'manager' = 'user'
 ) {
   const cookieHeader = request.headers.get('Cookie');
@@ -41,7 +40,6 @@ export async function createProfile(
     .from('profiles')
     .insert({
       id: userId,
-      name,
       role,
       created_at: new Date().toISOString(),
     });
