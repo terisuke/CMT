@@ -92,6 +92,12 @@ export default function CompanyDetail() {
             >
               取引一覧
             </button>
+            <button
+              onClick={() => navigate(`/companies/${company.id}/financials`)}
+              className="px-3 py-1 border border-transparent rounded-md text-sm font-medium text-white bg-green-600 hover:bg-green-700"
+            >
+              財務諸表
+            </button>
           </div>
         </div>
           
