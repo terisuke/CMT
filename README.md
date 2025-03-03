@@ -1,40 +1,91 @@
-# Welcome to Remix!
+# CMTプロジェクト
 
-- 📖 [Remix docs](https://remix.run/docs)
+このプロジェクトはRemix、React、Supabaseを使用した現代的なWebアプリケーションです。
 
-## Development
+## 技術スタック
 
-Run the dev server:
+- **フロントエンド**: React 18、Remix 2.16
+- **バックエンド**: Supabase (認証・データベース)
+- **スタイリング**: TailwindCSS 3.4
+- **言語**: TypeScript 5.1
+- **その他**: React Hook Form、date-fns
 
-```shellscript
+## 開発環境のセットアップ
+
+### 前提条件
+
+- Node.js v20以上
+- npmまたはyarn
+
+### 環境変数の設定
+
+1. `.env.template` ファイルを `.env` にコピーします
+2. Supabaseプロジェクトの認証情報を設定します:
+   ```
+   SUPABASE_URL=https://あなたのプロジェクトID.supabase.co
+   SUPABASE_ANON_KEY=あなたのAnon Key
+   ```
+
+### 開発サーバーの起動
+
+```bash
+# 依存関係のインストール
+npm install
+
+# 開発サーバーの起動
 npm run dev
 ```
 
-## Deployment
+開発サーバーは通常 http://localhost:5173 で起動します。
 
-First, build your app for production:
+## ディレクトリ構造
 
-```sh
+```
+/
+├── app/                  # アプリケーションのメインコード
+│   ├── components/       # 再利用可能なUIコンポーネント
+│   ├── routes/           # アプリケーションのルート
+│   ├── utils/            # ユーティリティ関数
+│   ├── types/            # TypeScript型定義
+│   ├── context/          # Reactコンテキスト
+│   ├── entry.client.tsx  # クライアントエントリーポイント
+│   ├── entry.server.tsx  # サーバーエントリーポイント
+│   ├── root.tsx          # ルートコンポーネント
+│   └── tailwind.css      # TailwindCSSのインポート
+├── public/               # 静的ファイル（画像、フォントなど）
+```
+
+## 本番環境へのデプロイ
+
+本番環境用のビルドを作成:
+
+```bash
 npm run build
 ```
 
-Then run the app in production mode:
+ビルドされたアプリケーションを起動:
 
-```sh
+```bash
 npm start
 ```
 
-Now you'll need to pick a host to deploy it to.
-
-### DIY
-
-If you're familiar with deploying Node applications, the built-in Remix app server is production-ready.
-
-Make sure to deploy the output of `npm run build`
-
+デプロイする際は、`npm run build`の出力結果を使用します:
 - `build/server`
 - `build/client`
 
-## Styling
+## 便利なコマンド
 
-This template comes with [Tailwind CSS](https://tailwindcss.com/) already configured for a simple default starting experience. You can use whatever css framework you prefer. See the [Vite docs on css](https://vitejs.dev/guide/features.html#css) for more information.
+```bash
+# TypeScriptの型チェック
+npm run typecheck
+
+# ESLintによるコード品質チェック
+npm run lint
+```
+
+## 参考リンク
+
+- [Remix ドキュメント](https://remix.run/docs)
+- [Supabase ドキュメント](https://supabase.io/docs)
+- [TailwindCSS ドキュメント](https://tailwindcss.com/docs)
+- [React Hook Form ドキュメント](https://react-hook-form.com/get-started)
