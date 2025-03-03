@@ -52,6 +52,7 @@ export async function createCompany(
   const supabaseClient = createServerSupabaseClient(request);
 
   // 企業を作成
+  console.log("企業作成開始", companyData);
   const { data: company, error: companyError } = await supabaseClient
     .from('companies')
     .insert({
@@ -61,11 +62,14 @@ export async function createCompany(
     .select()
     .single();
 
+  console.log("企業作成結果", { company, error: companyError });
+
   if (companyError || !company) {
     return { error: companyError };
   }
 
   // ユーザーと企業を関連付ける
+  console.log("関連付け開始", { userId, companyId: company.id });
   const { error: relationError } = await supabaseClient
     .from('user_companies')
     .insert({
@@ -74,6 +78,8 @@ export async function createCompany(
       role: 'owner',
       created_at: new Date().toISOString(),
     });
+
+  console.log("関連付け結果", { error: relationError });
 
   return { data: company, error: relationError };
 }
