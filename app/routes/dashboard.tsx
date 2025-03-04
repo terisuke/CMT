@@ -55,8 +55,8 @@ export default function Dashboard() {
 
   return (
     <AppLayout title="ダッシュボード">
-      <div className="bg-white shadow rounded-lg p-6">
-        <div className="flex justify-between items-center mb-6">
+      <div className="bg-white shadow rounded-lg p-4 sm:p-6 h-full flex flex-col">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
           <h2 className="text-lg font-medium">企業一覧</h2>
           <button 
             onClick={() => navigate('/companies/new')}
@@ -73,26 +73,26 @@ export default function Dashboard() {
         )}
         
         {companies && companies.length > 0 ? (
-          <div className="overflow-x-auto">
+          <div className="overflow-auto flex-grow rounded-lg border border-gray-200">
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50 sticky top-0">
                 <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     企業名
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
                     業種
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">
                     代表者
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">
                     登録日
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     権限
                   </th>
-                  <th scope="col" className="relative px-6 py-3">
+                  <th scope="col" className="relative px-3 sm:px-6 py-3">
                     <span className="sr-only">操作</span>
                   </th>
                 </tr>
@@ -109,42 +109,44 @@ export default function Dashboard() {
                   
                   return (
                     <tr key={item.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">{company.name}</div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap hidden sm:table-cell">
                         <div className="text-sm text-gray-500">{company.business_type || '未設定'}</div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap hidden md:table-cell">
                         <div className="text-sm text-gray-500">{company.representative || '未設定'}</div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap hidden md:table-cell">
                         <div className="text-sm text-gray-500">
                           {company.created_at 
                             ? format(new Date(company.created_at), 'yyyy年MM月dd日', { locale: ja })
                             : ''}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                           item.role === 'owner' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
                         }`}>
                           {item.role === 'owner' ? 'オーナー' : 'メンバー'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button 
-                          onClick={() => navigate(`/companies/${company.id}`)}
-                          className="text-blue-600 hover:text-blue-900 mr-4"
-                        >
-                          詳細
-                        </button>
-                        <button 
-                          onClick={() => navigate(`/companies/${company.id}/transactions`)}
-                          className="text-green-600 hover:text-green-900"
-                        >
-                          取引
-                        </button>
+                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div className="flex flex-col sm:flex-row sm:justify-end gap-2">
+                          <button 
+                            onClick={() => navigate(`/companies/${company.id}`)}
+                            className="text-blue-600 hover:text-blue-900"
+                          >
+                            詳細
+                          </button>
+                          <button 
+                            onClick={() => navigate(`/companies/${company.id}/transactions`)}
+                            className="text-green-600 hover:text-green-900"
+                          >
+                            取引
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -153,7 +155,7 @@ export default function Dashboard() {
             </table>
           </div>
         ) : (
-          <div className="text-center py-12">
+          <div className="text-center py-12 flex-grow flex flex-col justify-center items-center">
             <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
             </svg>

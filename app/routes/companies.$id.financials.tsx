@@ -1,4 +1,4 @@
-import { LoaderFunctionArgs, json, redirect, ActionFunctionArgs } from "@remix-run/node";
+import { ActionFunctionArgs, LoaderFunctionArgs, json, redirect } from "@remix-run/node";
 import { useFetcher, useLoaderData, useNavigate } from "@remix-run/react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
@@ -6,8 +6,8 @@ import { useEffect, useState } from "react";
 import type { FinancialStatements } from "~/types/financial";
 import { getCompanyById } from "~/utils/company.server";
 import { calculateFinancialStatements } from "~/utils/financial.server";
-import { createServerSupabaseClient, getUserFromSession } from "~/utils/supabase.server";
 import { supabase } from "~/utils/supabase.client";
+import { createServerSupabaseClient, getUserFromSession } from "~/utils/supabase.server";
 
 type LoaderData = {
   company: { id: string; name: string };
@@ -106,6 +106,17 @@ export default function FinancialsPage() {
     }
   }, [fetcher.data]);
 
+  // デバッグログを追加
+  useEffect(() => {
+    if (financials) {
+      console.log("資産:", financials.balanceSheet.assets);
+      console.log("負債:", financials.balanceSheet.liabilities);
+      console.log("資産合計:", financials.balanceSheet.totalAssets);
+      console.log("負債合計:", financials.balanceSheet.totalLiabilities);
+      console.log("純資産:", financials.balanceSheet.totalEquity);
+    }
+  }, [financials]);
+
   if (initialData.error) {
     return (
       <div className="bg-white shadow rounded-lg p-6">
@@ -192,8 +203,10 @@ export default function FinancialsPage() {
         ) : (
           <div className="mb-6">
             <h3 className="text-xl font-semibold text-gray-900 mb-4">貸借対照表</h3>
-            {financials?.balanceSheet.assets.length === 0 &&
-            financials?.balanceSheet.liabilities.length === 0 ? (
+            {!financials || 
+             (financials.balanceSheet.assets.length === 0 &&
+              financials.balanceSheet.liabilities.length === 0 &&
+              financials.incomeStatement.netIncome === 0) ? (
               <div className="text-center py-8 bg-gray-50 rounded-lg">
                 <p className="text-gray-500">取引データがありません。</p>
               </div>

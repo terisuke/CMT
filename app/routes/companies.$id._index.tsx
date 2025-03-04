@@ -2,6 +2,7 @@ import { LoaderFunctionArgs, json, redirect } from "@remix-run/node";
 import { useLoaderData, useNavigate } from "@remix-run/react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
+import AppLayout from "~/components/AppLayout";
 import { getCompanyById } from "~/utils/company.server";
 import { createServerSupabaseClient, getUserFromSession } from "~/utils/supabase.server";
 
@@ -39,22 +40,26 @@ export default function CompanyDetail() {
   
   if (error) {
     return (
-      <div className="bg-white shadow rounded-lg p-6">
-        <div className="text-red-500">{error}</div>
-      </div>
+      <AppLayout title="企業詳細" showBackButton={true} backTo="/dashboard">
+        <div className="bg-white shadow rounded-lg p-6">
+          <div className="text-red-500">{error}</div>
+        </div>
+      </AppLayout>
     );
   }
   
   if (!company) {
     return (
-      <div className="bg-white shadow rounded-lg p-6">
-        <div className="text-gray-500">企業情報が見つかりません</div>
-      </div>
+      <AppLayout title="企業詳細" showBackButton={true} backTo="/dashboard">
+        <div className="bg-white shadow rounded-lg p-6">
+          <div className="text-gray-500">企業情報が見つかりません</div>
+        </div>
+      </AppLayout>
     );
   }
   
   return (
-    <>
+    <AppLayout title={company.name} showBackButton={true} backTo="/dashboard">
       <div className="bg-white shadow rounded-lg overflow-hidden">
         <div className="px-6 py-5">
           <dl className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
@@ -136,6 +141,6 @@ export default function CompanyDetail() {
           </div>
         </div>
       </div>
-    </>
+    </AppLayout>
   );
 } 

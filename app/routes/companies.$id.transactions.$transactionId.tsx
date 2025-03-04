@@ -117,14 +117,6 @@ export default function TransactionDetail() {
       <div className="bg-white shadow rounded-lg overflow-hidden">
         <div className="px-6 py-5 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
           <h3 className="text-lg leading-6 font-medium text-gray-900">取引詳細</h3>
-          <div className="flex space-x-3">
-            <button
-              onClick={() => navigate(`/companies/${company.id}/transactions/${transaction.id}/edit`)}
-              className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-            >
-              編集
-            </button>
-          </div>
         </div>
         
         <div className="px-6 py-5">

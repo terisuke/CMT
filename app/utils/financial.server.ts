@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { createServerSupabaseClient } from "./supabase.server";
 import type { AccountSummary, FinancialStatements } from "~/types/financial";
+import { createServerSupabaseClient } from "./supabase.server";
 
 // 取引データから財務諸表を計算する
 export async function calculateFinancialStatements(
@@ -100,8 +100,18 @@ export async function calculateFinancialStatements(
   const totalExpense = expenses.reduce((sum, item) => sum + item.amount, 0);
   const netIncome = totalRevenue - totalExpense;
   
-  // 純資産（資本）を計算（純資産 = 資産 - 負債）
+  // 純資産（資本）を計算
   const totalEquity = totalAssets - totalLiabilities;
+  
+  // 純利益がある場合で、資産・負債が反映されていない場合（取引データなし）
+  // 純利益分を現金として資産に追加（会計原則に従って資産=負債+純資産を維持）
+  if (netIncome !== 0 && totalAssets === 0 && totalLiabilities === 0) {
+    // 資産に純利益を「現金」として追加
+    assets.push({ account: '現金（利益計上）', amount: netIncome });
+    
+    // 総資産額を更新
+    financialStatements.balanceSheet.totalAssets = netIncome;
+  }
   
   // 純資産（資本）の項目を作成
   const equity: AccountSummary[] = [
@@ -112,9 +122,13 @@ export async function calculateFinancialStatements(
   financialStatements.balanceSheet.assets = assets;
   financialStatements.balanceSheet.liabilities = liabilities;
   financialStatements.balanceSheet.equity = equity;
-  financialStatements.balanceSheet.totalAssets = totalAssets;
+  financialStatements.balanceSheet.totalAssets = netIncome !== 0 && totalAssets === 0 && totalLiabilities === 0 
+    ? netIncome  // 純利益がある場合は資産に反映
+    : totalAssets;
   financialStatements.balanceSheet.totalLiabilities = totalLiabilities;
-  financialStatements.balanceSheet.totalEquity = totalEquity;
+  financialStatements.balanceSheet.totalEquity = netIncome !== 0 && totalAssets === 0 && totalLiabilities === 0
+    ? netIncome  // 純利益がある場合は純資産に反映
+    : totalEquity;
   
   financialStatements.incomeStatement.revenues = revenues;
   financialStatements.incomeStatement.expenses = expenses;

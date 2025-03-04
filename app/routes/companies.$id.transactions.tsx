@@ -1,8 +1,8 @@
 import { ActionFunctionArgs, LoaderFunctionArgs, json, redirect } from "@remix-run/node";
-import { Outlet, useLoaderData, useLocation, useNavigate, useSubmit, useRevalidator } from "@remix-run/react";
+import { Outlet, useLoaderData, useLocation, useNavigate, useRevalidator, useSubmit } from "@remix-run/react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { getCompanyById } from "~/utils/company.server";
 import { createServerSupabaseClient, getUserFromSession } from "~/utils/supabase.server";
 import { deleteTransaction, getTransactionsByCompanyId } from "~/utils/transaction.server";
@@ -99,6 +99,12 @@ export default function TransactionsList() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
   const revalidator = useRevalidator();
+
+  // モーダルの状態をリセットするためのエフェクト
+  useEffect(() => {
+    setShowDeleteModal(false);
+    setTransactionToDelete(null);
+  }, [location.pathname]);
 
   const filteredTransactions = transactions.filter(
     (t: Transaction) => filter === 'all' || t.type === filter
