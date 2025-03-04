@@ -252,7 +252,7 @@ export default function FinancialStatements() {
                       </div>
                       
                       {renderTotal("負債・純資産合計", 
-                        (financials?.balanceSheet?.totalLiabilities || 0) + (financials?.incomeStatement?.netIncome || 0), 
+                        (financials?.balanceSheet?.totalLiabilities || 0) + (financials?.balanceSheet?.totalEquity || 0), 
                         "text-blue-600")}
                     </div>
                   </div>
