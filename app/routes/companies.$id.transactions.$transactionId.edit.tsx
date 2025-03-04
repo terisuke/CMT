@@ -101,10 +101,8 @@ export async function action({ request, params }: ActionFunctionArgs) {
   if (!amountStr) errors.amount = "金額は必須です";
   if (!type) errors.type = "取引タイプは必須です";
   
-  // 金額の検証
   let amount: number;
   try {
-    // カンマを取り除いて数値に変換
     amount = Number(amountStr.replace(/,/g, ''));
     if (isNaN(amount) || amount <= 0) {
       errors.amount = "金額は正の数値を入力してください";
@@ -121,7 +119,6 @@ export async function action({ request, params }: ActionFunctionArgs) {
     });
   }
   
-  // 取引データを更新
   const { error } = await supabase
     .from('transactions')
     .update({
@@ -163,7 +160,6 @@ export default function EditTransaction() {
   const amountRef = useRef<HTMLInputElement>(null);
   const typeRef = useRef<HTMLSelectElement>(null);
   
-  // フォーム送信エラー時にフォームの値を復元
   useEffect(() => {
     if (actionData?.errors) {
       if (actionData.errors.date) {
@@ -186,7 +182,6 @@ export default function EditTransaction() {
     }
   }, [actionData, transaction]);
   
-  // 取引タイプに応じた表示文字列を返す
   const getTypeLabel = (type: string) => {
     switch (type) {
       case 'income': return '収益';
@@ -198,15 +193,12 @@ export default function EditTransaction() {
   };
   
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    // フォーム送信時の処理
     console.log("フォーム送信中");
   };
   
   if (actionData?.errors?.form || !transaction) {
     return (
-      <AppLayout 
-        title={company ? `${company.name} - エラー` : "エラー"} 
-      >
+      <AppLayout title={company ? `${company.name} - エラー` : "エラー"}>
         <div className="bg-red-50 p-4 rounded-md mb-6">
           <p className="text-red-600">{actionData?.errors?.form || "取引が見つかりません"}</p>
         </div>
@@ -215,11 +207,7 @@ export default function EditTransaction() {
   }
   
   return (
-    <AppLayout 
-      title={`${company.name} - 取引を編集`} 
-      showBackButton={true} 
-      backTo={`/companies/${company.id}/transactions/${transaction.id}`}
-    >
+    <AppLayout title={`${company.name} - 取引を編集`} showBackButton={true} backTo={`/companies/${company.id}/transactions/${transaction.id}`}>
       <div className="max-w-2xl mx-auto">
         <div className="bg-white shadow rounded-lg p-6">
           <div className="mb-6">
@@ -228,18 +216,12 @@ export default function EditTransaction() {
               取引情報を更新してください。
             </p>
           </div>
-          
-          <Form 
-            method="post" 
-            onSubmit={handleSubmit}
-            className="space-y-6"
-          >
+          <Form method="post" onSubmit={handleSubmit} className="space-y-6">
             {actionData?.errors?.form && (
               <div className="bg-red-50 p-4 rounded-md text-red-600 text-sm">
                 {actionData.errors.form}
               </div>
             )}
-            
             <div>
               <label htmlFor="date" className="block text-sm font-medium text-gray-700">
                 日付 <span className="text-red-500">*</span>
@@ -252,15 +234,12 @@ export default function EditTransaction() {
                 onChange={(e) => setDate(e.target.value)}
                 ref={dateRef}
                 required
-                className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${
-                  actionData?.errors?.date ? "border-red-300" : ""
-                }`}
+                className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${actionData?.errors?.date ? "border-red-300" : ""}`}
               />
               {actionData?.errors?.date && (
                 <p className="mt-2 text-sm text-red-600">{actionData.errors.date}</p>
               )}
             </div>
-            
             <div>
               <label htmlFor="type" className="block text-sm font-medium text-gray-700">
                 取引タイプ <span className="text-red-500">*</span>
@@ -272,9 +251,7 @@ export default function EditTransaction() {
                 onChange={(e) => setType(e.target.value)}
                 ref={typeRef}
                 required
-                className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${
-                  actionData?.errors?.type ? "border-red-300" : ""
-                }`}
+                className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${actionData?.errors?.type ? "border-red-300" : ""}`}
               >
                 <option value="" disabled>選択してください</option>
                 <option value="income">収益</option>
@@ -286,7 +263,6 @@ export default function EditTransaction() {
                 <p className="mt-2 text-sm text-red-600">{actionData.errors.type}</p>
               )}
             </div>
-            
             <div>
               <label htmlFor="account" className="block text-sm font-medium text-gray-700">
                 勘定科目 <span className="text-red-500">*</span>
@@ -299,15 +275,12 @@ export default function EditTransaction() {
                 onChange={(e) => setAccount(e.target.value)}
                 ref={accountRef}
                 required
-                className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${
-                  actionData?.errors?.account ? "border-red-300" : ""
-                }`}
+                className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${actionData?.errors?.account ? "border-red-300" : ""}`}
               />
               {actionData?.errors?.account && (
                 <p className="mt-2 text-sm text-red-600">{actionData.errors.account}</p>
               )}
             </div>
-            
             <div>
               <label htmlFor="amount" className="block text-sm font-medium text-gray-700">
                 金額 <span className="text-red-500">*</span>
@@ -326,16 +299,13 @@ export default function EditTransaction() {
                   ref={amountRef}
                   placeholder="0"
                   required
-                  className={`pl-7 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${
-                    actionData?.errors?.amount ? "border-red-300" : ""
-                  }`}
+                  className={`pl-7 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${actionData?.errors?.amount ? "border-red-300" : ""}`}
                 />
               </div>
               {actionData?.errors?.amount && (
                 <p className="mt-2 text-sm text-red-600">{actionData.errors.amount}</p>
               )}
             </div>
-            
             <div>
               <label htmlFor="description" className="block text-sm font-medium text-gray-700">
                 説明
@@ -349,7 +319,6 @@ export default function EditTransaction() {
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
               />
             </div>
-            
             <div className="flex justify-end space-x-3">
               <button
                 type="button"

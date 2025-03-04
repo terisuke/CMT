@@ -1,5 +1,5 @@
 import { ActionFunctionArgs, LoaderFunctionArgs, json, redirect } from "@remix-run/node";
-import { Outlet, useLoaderData, useLocation, useNavigate, useSubmit } from "@remix-run/react";
+import { Outlet, useLoaderData, useLocation, useNavigate, useSubmit, useRevalidator } from "@remix-run/react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 import { useState } from "react";
@@ -21,42 +21,31 @@ type Transaction = {
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const supabase = createServerSupabaseClient(request);
-  
-  // getUser()メソッドを使用した認証チェック
   const { data: { user }, error: authError } = await getUserFromSession(request);
-  
   if (authError || !user) {
     return redirect("/");
   }
-  
   const companyId = params.id;
   if (!companyId) {
     return redirect("/dashboard");
   }
-  
-  // 企業情報を取得
   const { data: company, error: companyError } = await getCompanyById(request, companyId);
-  
   if (companyError || !company) {
-    return json({ 
+    return json({
       error: "企業情報の取得に失敗しました",
       company: null,
       transactions: []
     });
   }
-  
-  // トランザクションを取得
   const { data: transactions, error } = await getTransactionsByCompanyId(request, companyId);
-  
   if (error) {
-    return json({ 
+    return json({
       error: "取引データの取得に失敗しました",
       company,
       transactions: [],
     });
   }
-  
-  return json({ 
+  return json({
     company,
     transactions: transactions || [],
     error: null
@@ -65,47 +54,36 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
 export async function action({ request, params }: ActionFunctionArgs) {
   const supabase = createServerSupabaseClient(request);
-  
-  // getUser()メソッドを使用した認証チェック
   const { data: { user }, error: authError } = await getUserFromSession(request);
-  
   if (authError || !user) {
     return redirect("/");
   }
-  
   const companyId = params.id;
   if (!companyId) {
     return redirect("/dashboard");
   }
-  
   const formData = await request.formData();
   const actionType = formData.get("_action");
-  
   if (actionType === "delete") {
     const transactionId = formData.get("transactionId");
-    
     if (!transactionId || typeof transactionId !== 'string') {
       return json({
         success: false,
         error: "取引IDが無効です"
       });
     }
-    
     const { error } = await deleteTransaction(request, transactionId);
-    
     if (error) {
       return json({
         success: false,
         error: "取引の削除に失敗しました"
       });
     }
-    
     return json({
       success: true,
       error: null
     });
   }
-
   return json({
     success: false,
     error: "不明なアクションタイプです"
@@ -120,13 +98,12 @@ export default function TransactionsList() {
   const [filter, setFilter] = useState<string>('all');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
-  
-  // 表示する取引をフィルタリング
+  const revalidator = useRevalidator();
+
   const filteredTransactions = transactions.filter(
     (t: Transaction) => filter === 'all' || t.type === filter
   );
-  
-  // 取引タイプに応じた表示文字列を返す
+
   const getTypeLabel = (type: string) => {
     switch (type) {
       case 'income': return '収益';
@@ -136,8 +113,7 @@ export default function TransactionsList() {
       default: return type;
     }
   };
-  
-  // 取引タイプに応じた色クラスを返す
+
   const getTypeColorClass = (type: string) => {
     switch (type) {
       case 'income': return 'bg-green-100 text-green-800';
@@ -147,63 +123,48 @@ export default function TransactionsList() {
       default: return 'bg-gray-100 text-gray-800';
     }
   };
-  
-  // 削除モーダルを開く
+
   const openDeleteModal = (transaction: Transaction) => {
     setTransactionToDelete(transaction);
     setShowDeleteModal(true);
   };
-  
-  // 削除モーダルを閉じる
+
   const closeDeleteModal = () => {
     setShowDeleteModal(false);
     setTransactionToDelete(null);
   };
-  
-  // 削除処理を実行
+
   const handleDelete = () => {
     if (!transactionToDelete) return;
-    
     const formData = new FormData();
     formData.append('_action', 'delete');
     formData.append('transactionId', transactionToDelete.id);
-    
     submit(formData, { method: 'post' });
     closeDeleteModal();
+    revalidator.revalidate();
   };
-  
-  if (error) {
-    return (
-      <div className="bg-white shadow rounded-lg p-6">
-        <div className="text-red-500">{error}</div>
-      </div>
-    );
-  }
-  
-  // URLがネストされたルートを示している場合（例：/companies/:id/transactions/new）
-  // Outletコンポーネントをレンダリングしてサブルートを表示
-  // window is not definedエラーを解消するために条件分岐を修正
-  
-  // パスパラメータから判断する（サーバーサイドレンダリングでも動作）
+
+  // 子ルート（新規作成や詳細・編集画面）の場合は Outlet をレンダリング
   const pathname = location.pathname;
-  if (pathname.split('/').length > 4) { // /companies/:id/transactions/anything
+  const segments = pathname.split('/');
+  if (segments.length > 4) {
     return <Outlet context={{ company }} />;
   }
-  
+
   return (
     <>
       <div className="bg-white shadow rounded-lg overflow-hidden">
         <div className="px-6 py-5 border-b border-gray-200 bg-gray-50 flex flex-wrap justify-between items-center gap-3">
-            <button
-              onClick={() => navigate(`/companies/${company.id}`)}
-              className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              戻る
-            </button>
-            <h3 className="text-lg leading-6 font-medium text-gray-900">取引一覧</h3>
+          <button
+            onClick={() => navigate(`/companies/${company.id}`)}
+            className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            戻る
+          </button>
+          <h3 className="text-lg leading-6 font-medium text-gray-900">取引一覧</h3>
           <div className="flex items-center gap-4">
             <div>
               <label htmlFor="filter" className="sr-only">フィルター</label>
@@ -228,7 +189,6 @@ export default function TransactionsList() {
             </button>
           </div>
         </div>
-        
         {transactions.length === 0 ? (
           <div className="p-6 text-center">
             <p className="text-gray-500">取引データがありません。</p>
@@ -286,10 +246,10 @@ export default function TransactionsList() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <button 
-                        onClick={() => navigate(`/companies/${company.id}/transactions/${transaction.id}/edit`)}
+                        onClick={() => navigate(`/companies/${company.id}/transactions/${transaction.id}`)}
                         className="text-blue-600 hover:text-blue-900 mr-4"
                       >
-                        編集
+                        詳細
                       </button>
                       <button 
                         onClick={() => openDeleteModal(transaction)}
@@ -305,8 +265,6 @@ export default function TransactionsList() {
           </div>
         )}
       </div>
-      
-      {/* 削除確認モーダル */}
       {showDeleteModal && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg max-w-md w-full p-6 shadow-xl">
@@ -335,4 +293,4 @@ export default function TransactionsList() {
       )}
     </>
   );
-} 
+}
