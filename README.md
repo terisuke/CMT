@@ -21,6 +21,7 @@
 
 1. `.env.template` ファイルを `.env` にコピーします
 2. Supabaseプロジェクトの認証情報を設定します:
+
    ```
    SUPABASE_URL=https://あなたのプロジェクトID.supabase.co
    SUPABASE_ANON_KEY=あなたのAnon Key
@@ -36,7 +37,7 @@ npm install
 npm run dev
 ```
 
-開発サーバーは通常 http://localhost:5173 で起動します。
+開発サーバーは通常 <http://localhost:5173> で起動します。
 
 ## ディレクトリ構造
 
@@ -70,6 +71,7 @@ npm start
 ```
 
 デプロイする際は、`npm run build`の出力結果を使用します:
+
 - `build/server`
 - `build/client`
 
