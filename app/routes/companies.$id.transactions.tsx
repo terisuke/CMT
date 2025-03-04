@@ -1,13 +1,12 @@
-import { ActionFunctionArgs, json, LoaderFunctionArgs, redirect } from "@remix-run/node";
-import { useLoaderData, useNavigate, useSubmit } from "@remix-run/react";
+import { ActionFunctionArgs, LoaderFunctionArgs, json, redirect } from "@remix-run/node";
+import { Outlet, useLoaderData, useLocation, useNavigate, useSubmit } from "@remix-run/react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 import { useState } from "react";
-import AppLayout from "~/components/AppLayout";
 import { getCompanyById } from "~/utils/company.server";
 import { createServerSupabaseClient, getUserFromSession } from "~/utils/supabase.server";
+import { deleteTransaction, getTransactionsByCompanyId } from "~/utils/transaction.server";
 
-// 取引データの型定義
 type Transaction = {
   id: string;
   company_id: string;
@@ -46,23 +45,19 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     });
   }
   
-  // 取引データを取得
-  const { data: transactions, error: transactionError } = await supabase
-    .from('transactions')
-    .select('*')
-    .eq('company_id', companyId)
-    .order('date', { ascending: false });
+  // トランザクションを取得
+  const { data: transactions, error } = await getTransactionsByCompanyId(request, companyId);
   
-  if (transactionError) {
+  if (error) {
     return json({ 
+      error: "取引データの取得に失敗しました",
       company,
       transactions: [],
-      error: "取引データの取得に失敗しました"
     });
   }
   
   return json({ 
-    company, 
+    company,
     transactions: transactions || [],
     error: null
   });
@@ -84,24 +79,19 @@ export async function action({ request, params }: ActionFunctionArgs) {
   }
   
   const formData = await request.formData();
-  const actionType = formData.get("_action") as string;
+  const actionType = formData.get("_action");
   
-  if (actionType === "deleteTransaction") {
-    const transactionId = formData.get("transactionId") as string;
+  if (actionType === "delete") {
+    const transactionId = formData.get("transactionId");
     
-    if (!transactionId) {
+    if (!transactionId || typeof transactionId !== 'string') {
       return json({
         success: false,
-        error: "取引IDが指定されていません"
+        error: "取引IDが無効です"
       });
     }
     
-    // 取引を削除
-    const { error } = await supabase
-      .from('transactions')
-      .delete()
-      .eq('id', transactionId)
-      .eq('company_id', companyId);
+    const { error } = await deleteTransaction(request, transactionId);
     
     if (error) {
       return json({
@@ -115,7 +105,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       error: null
     });
   }
-  
+
   return json({
     success: false,
     error: "不明なアクションタイプです"
@@ -126,6 +116,7 @@ export default function TransactionsList() {
   const { company, transactions, error } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
   const submit = useSubmit();
+  const location = useLocation();
   const [filter, setFilter] = useState<string>('all');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
@@ -157,107 +148,98 @@ export default function TransactionsList() {
     }
   };
   
-  // 削除ダイアログを表示
+  // 削除モーダルを開く
   const openDeleteModal = (transaction: Transaction) => {
     setTransactionToDelete(transaction);
     setShowDeleteModal(true);
   };
   
-  // 削除ダイアログを閉じる
+  // 削除モーダルを閉じる
   const closeDeleteModal = () => {
     setShowDeleteModal(false);
     setTransactionToDelete(null);
   };
   
-  // 取引を削除
+  // 削除処理を実行
   const handleDelete = () => {
     if (!transactionToDelete) return;
     
     const formData = new FormData();
-    formData.append("_action", "deleteTransaction");
-    formData.append("transactionId", transactionToDelete.id);
+    formData.append('_action', 'delete');
+    formData.append('transactionId', transactionToDelete.id);
     
-    submit(formData, {
-      method: "post",
-      replace: true
-    });
-    
+    submit(formData, { method: 'post' });
     closeDeleteModal();
   };
   
+  if (error) {
+    return (
+      <div className="bg-white shadow rounded-lg p-6">
+        <div className="text-red-500">{error}</div>
+      </div>
+    );
+  }
+  
+  // URLがネストされたルートを示している場合（例：/companies/:id/transactions/new）
+  // Outletコンポーネントをレンダリングしてサブルートを表示
+  // window is not definedエラーを解消するために条件分岐を修正
+  
+  // パスパラメータから判断する（サーバーサイドレンダリングでも動作）
+  const pathname = location.pathname;
+  if (pathname.split('/').length > 4) { // /companies/:id/transactions/anything
+    return <Outlet context={{ company }} />;
+  }
+  
   return (
-    <AppLayout title={`${company?.name} - 取引一覧`} showBackButton={true} backTo={`/companies/${company?.id}`}>
-      {error && (
-        <div className="bg-red-50 p-4 rounded-md mb-6">
-          <p className="text-red-600">{error}</p>
-        </div>
-      )}
-      
+    <>
       <div className="bg-white shadow rounded-lg overflow-hidden">
-        <div className="px-6 py-5 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
-          <h3 className="text-lg leading-6 font-medium text-gray-900">取引一覧</h3>
-          <div className="flex space-x-3">
+        <div className="px-6 py-5 border-b border-gray-200 bg-gray-50 flex flex-wrap justify-between items-center gap-3">
             <button
-              onClick={() => navigate(`/companies/${company?.id}/transactions/new`)}
-              className="px-3 py-1 border border-transparent rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+              onClick={() => navigate(`/companies/${company.id}`)}
+              className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              戻る
+            </button>
+            <h3 className="text-lg leading-6 font-medium text-gray-900">取引一覧</h3>
+          <div className="flex items-center gap-4">
+            <div>
+              <label htmlFor="filter" className="sr-only">フィルター</label>
+              <select
+                id="filter"
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+              >
+                <option value="all">すべて</option>
+                <option value="income">収益</option>
+                <option value="expense">費用</option>
+                <option value="asset">資産</option>
+                <option value="liability">負債</option>
+              </select>
+            </div>
+            <button
+              onClick={() => navigate(`/companies/${company.id}/transactions/new`)}
+              className="inline-flex items-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             >
               取引を追加
             </button>
-            <button
-              onClick={() => navigate(`/companies/${company?.id}/financials`)}
-              className="px-3 py-1 border border-transparent rounded-md text-sm font-medium text-white bg-green-600 hover:bg-green-700 ml-2"
-            >
-              財務諸表
-            </button>
           </div>
         </div>
         
-        <div className="px-6 py-4 border-b border-gray-200">
-          <div className="flex flex-wrap gap-2">
+        {transactions.length === 0 ? (
+          <div className="p-6 text-center">
+            <p className="text-gray-500">取引データがありません。</p>
             <button
-              onClick={() => setFilter('all')}
-              className={`px-3 py-1 rounded-md text-sm font-medium ${
-                filter === 'all' ? 'bg-gray-200 text-gray-800' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
+              onClick={() => navigate(`/companies/${company.id}/transactions/new`)}
+              className="mt-4 inline-flex items-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             >
-              すべて
-            </button>
-            <button
-              onClick={() => setFilter('income')}
-              className={`px-3 py-1 rounded-md text-sm font-medium ${
-                filter === 'income' ? 'bg-green-200 text-green-800' : 'bg-green-50 text-green-600 hover:bg-green-100'
-              }`}
-            >
-              収益
-            </button>
-            <button
-              onClick={() => setFilter('expense')}
-              className={`px-3 py-1 rounded-md text-sm font-medium ${
-                filter === 'expense' ? 'bg-red-200 text-red-800' : 'bg-red-50 text-red-600 hover:bg-red-100'
-              }`}
-            >
-              費用
-            </button>
-            <button
-              onClick={() => setFilter('asset')}
-              className={`px-3 py-1 rounded-md text-sm font-medium ${
-                filter === 'asset' ? 'bg-blue-200 text-blue-800' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
-              }`}
-            >
-              資産
-            </button>
-            <button
-              onClick={() => setFilter('liability')}
-              className={`px-3 py-1 rounded-md text-sm font-medium ${
-                filter === 'liability' ? 'bg-yellow-200 text-yellow-800' : 'bg-yellow-50 text-yellow-600 hover:bg-yellow-100'
-              }`}
-            >
-              負債
+              最初の取引を追加
             </button>
           </div>
-        </div>
-        
-        {filteredTransactions.length > 0 ? (
+        ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -272,50 +254,40 @@ export default function TransactionsList() {
                     説明
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    タイプ
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     金額
                   </th>
-                  <th scope="col" className="relative px-6 py-3">
-                    <span className="sr-only">操作</span>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    種類
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    アクション
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredTransactions.map((transaction: Transaction) => (
                   <tr key={transaction.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {format(new Date(transaction.date), 'yyyy/MM/dd', { locale: ja })}
-                      </div>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {format(new Date(transaction.date), 'yyyy年MM月dd日', { locale: ja })}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{transaction.account}</div>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {transaction.account}
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-gray-500">{transaction.description || "-"}</div>
+                    <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate">
+                      {transaction.description || "—"}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      ¥{transaction.amount.toLocaleString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getTypeColorClass(transaction.type)}`}>
                         {getTypeLabel(transaction.type)}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <div className="text-sm font-medium text-gray-900">
-                        {transaction.amount.toLocaleString()} 円
-                      </div>
-                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <button 
-                        onClick={() => navigate(`/companies/${company?.id}/transactions/${transaction.id}`)}
-                        className="text-blue-600 hover:text-blue-900 mr-3"
-                      >
-                        詳細
-                      </button>
-                      <button 
-                        onClick={() => navigate(`/companies/${company?.id}/transactions/${transaction.id}/edit`)}
-                        className="text-gray-600 hover:text-gray-900 mr-3"
+                        onClick={() => navigate(`/companies/${company.id}/transactions/${transaction.id}/edit`)}
+                        className="text-blue-600 hover:text-blue-900 mr-4"
                       >
                         編集
                       </button>
@@ -331,63 +303,29 @@ export default function TransactionsList() {
               </tbody>
             </table>
           </div>
-        ) : (
-          <div className="text-center py-12">
-            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <h3 className="mt-2 text-lg font-medium text-gray-900">取引データがありません</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              「取引を追加」ボタンから新しい取引を登録してください。
-            </p>
-            <div className="mt-6">
-              <button
-                onClick={() => navigate(`/companies/${company?.id}/transactions/new`)}
-                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                取引を追加
-              </button>
-            </div>
-          </div>
         )}
       </div>
       
       {/* 削除確認モーダル */}
       {showDeleteModal && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full p-6 shadow-xl">
             <h3 className="text-lg font-medium text-gray-900 mb-4">取引の削除</h3>
-            <p className="text-sm text-gray-500">
-              本当に以下の取引を削除しますか？この操作は取り消せません。
+            <p className="text-sm text-gray-500 mb-4">
+              本当にこの取引を削除しますか？この操作は元に戻せません。
             </p>
-            {transactionToDelete && (
-              <div className="mt-4 bg-gray-50 p-4 rounded-md">
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div className="font-medium">日付：</div>
-                  <div>{format(new Date(transactionToDelete.date), 'yyyy/MM/dd', { locale: ja })}</div>
-                  <div className="font-medium">勘定科目：</div>
-                  <div>{transactionToDelete.account}</div>
-                  <div className="font-medium">金額：</div>
-                  <div>{transactionToDelete.amount.toLocaleString()} 円</div>
-                  <div className="font-medium">タイプ：</div>
-                  <div>
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getTypeColorClass(transactionToDelete.type)}`}>
-                      {getTypeLabel(transactionToDelete.type)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
-            <div className="mt-6 flex justify-end space-x-3">
+            <div className="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3">
               <button
+                type="button"
                 onClick={closeDeleteModal}
-                className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                className="inline-flex justify-center w-full rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:text-sm"
               >
                 キャンセル
               </button>
               <button
+                type="button"
                 onClick={handleDelete}
-                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                className="inline-flex justify-center w-full rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:text-sm"
               >
                 削除する
               </button>
@@ -395,6 +333,6 @@ export default function TransactionsList() {
           </div>
         </div>
       )}
-    </AppLayout>
+    </>
   );
-}
+} 

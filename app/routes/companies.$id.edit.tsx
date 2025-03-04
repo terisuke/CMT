@@ -23,9 +23,9 @@ type ActionData = {
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const supabase = createServerSupabaseClient(request);
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
   
-  if (!session?.user) {
+  if (authError || !user) {
     return redirect("/");
   }
   
@@ -49,9 +49,9 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
 export async function action({ request, params }: ActionFunctionArgs) {
   const supabase = createServerSupabaseClient(request);
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
   
-  if (!session?.user) {
+  if (authError || !user) {
     return redirect("/");
   }
   

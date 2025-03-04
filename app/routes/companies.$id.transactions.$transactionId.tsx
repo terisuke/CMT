@@ -21,9 +21,9 @@ type Transaction = {
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const supabase = createServerSupabaseClient(request);
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
   
-  if (!session?.user) {
+  if (authError || !user) {
     return redirect("/");
   }
   

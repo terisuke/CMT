@@ -1,9 +1,9 @@
-import { useState } from "react";
-import { LoaderFunctionArgs, ActionFunctionArgs, json, redirect } from "@remix-run/node";
-import { Form, useLoaderData, useActionData, useNavigate } from "@remix-run/react";
+import { ActionFunctionArgs, json, LoaderFunctionArgs, redirect } from "@remix-run/node";
+import { Form, useActionData, useLoaderData, useNavigate, useNavigation } from "@remix-run/react";
+import { useEffect, useRef, useState } from "react";
 import AppLayout from "~/components/AppLayout";
-import { createServerSupabaseClient } from "~/utils/supabase.server";
 import { getCompanyById } from "~/utils/company.server";
+import { createServerSupabaseClient } from "~/utils/supabase.server";
 
 // ActionDataの型定義
 type ActionData = {
@@ -25,9 +25,9 @@ type ActionData = {
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const supabase = createServerSupabaseClient(request);
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
   
-  if (!session?.user) {
+  if (authError || !user) {
     return redirect("/");
   }
   
@@ -74,9 +74,9 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
 export async function action({ request, params }: ActionFunctionArgs) {
   const supabase = createServerSupabaseClient(request);
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
   
-  if (!session?.user) {
+  if (authError || !user) {
     return redirect("/");
   }
   
@@ -146,20 +146,68 @@ export async function action({ request, params }: ActionFunctionArgs) {
 }
 
 export default function EditTransaction() {
-  const { company, transaction, error } = useLoaderData<typeof loader>();
+  const { company, transaction } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigate = useNavigate();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const navigation = useNavigation();
+  const isSubmitting = navigation.state === "submitting";
   
-  if (error || !transaction) {
+  const [date, setDate] = useState(transaction.date);
+  const [account, setAccount] = useState(transaction.account);
+  const [description, setDescription] = useState(transaction.description || "");
+  const [amount, setAmount] = useState(transaction.amount.toString());
+  const [type, setType] = useState(transaction.type);
+  
+  const dateRef = useRef<HTMLInputElement>(null);
+  const accountRef = useRef<HTMLInputElement>(null);
+  const amountRef = useRef<HTMLInputElement>(null);
+  const typeRef = useRef<HTMLSelectElement>(null);
+  
+  // フォーム送信エラー時にフォームの値を復元
+  useEffect(() => {
+    if (actionData?.errors) {
+      if (actionData.errors.date) {
+        dateRef.current?.focus();
+      } else if (actionData.errors.account) {
+        accountRef.current?.focus();
+      } else if (actionData.errors.amount) {
+        amountRef.current?.focus();
+      } else if (actionData.errors.type) {
+        typeRef.current?.focus();
+      }
+    }
+    
+    if (actionData?.values) {
+      setDate(actionData.values.date || transaction.date);
+      setAccount(actionData.values.account || transaction.account);
+      setDescription(actionData.values.description || transaction.description || "");
+      setAmount(actionData.values.amount || transaction.amount.toString());
+      setType(actionData.values.type || transaction.type);
+    }
+  }, [actionData, transaction]);
+  
+  // 取引タイプに応じた表示文字列を返す
+  const getTypeLabel = (type: string) => {
+    switch (type) {
+      case 'income': return '収益';
+      case 'expense': return '費用';
+      case 'asset': return '資産';
+      case 'liability': return '負債';
+      default: return type;
+    }
+  };
+  
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    // フォーム送信時の処理
+  };
+  
+  if (actionData?.errors?.form || !transaction) {
     return (
       <AppLayout 
         title={company ? `${company.name} - エラー` : "エラー"} 
-        showBackButton={true} 
-        backTo={company ? `/companies/${company.id}/transactions` : "/dashboard"}
       >
         <div className="bg-red-50 p-4 rounded-md mb-6">
-          <p className="text-red-600">{error || "取引が見つかりません"}</p>
+          <p className="text-red-600">{actionData?.errors?.form || "取引が見つかりません"}</p>
         </div>
       </AppLayout>
     );
@@ -182,7 +230,7 @@ export default function EditTransaction() {
           
           <Form 
             method="post" 
-            onSubmit={() => setIsSubmitting(true)}
+            onSubmit={handleSubmit}
             className="space-y-6"
           >
             {actionData?.errors?.form && (
@@ -199,7 +247,9 @@ export default function EditTransaction() {
                 id="date"
                 name="date"
                 type="date"
-                defaultValue={actionData?.values?.date || transaction.date}
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                ref={dateRef}
                 required
                 className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${
                   actionData?.errors?.date ? "border-red-300" : ""
@@ -217,7 +267,9 @@ export default function EditTransaction() {
               <select
                 id="type"
                 name="type"
-                defaultValue={actionData?.values?.type || transaction.type}
+                value={type}
+                onChange={(e) => setType(e.target.value)}
+                ref={typeRef}
                 required
                 className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${
                   actionData?.errors?.type ? "border-red-300" : ""
@@ -242,7 +294,9 @@ export default function EditTransaction() {
                 id="account"
                 name="account"
                 type="text"
-                defaultValue={actionData?.values?.account || transaction.account}
+                value={account}
+                onChange={(e) => setAccount(e.target.value)}
+                ref={accountRef}
                 required
                 className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${
                   actionData?.errors?.account ? "border-red-300" : ""
@@ -266,7 +320,9 @@ export default function EditTransaction() {
                   name="amount"
                   type="text"
                   inputMode="numeric"
-                  defaultValue={actionData?.values?.amount || transaction.amount.toLocaleString()}
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  ref={amountRef}
                   placeholder="0"
                   required
                   className={`pl-7 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${
@@ -287,7 +343,8 @@ export default function EditTransaction() {
                 id="description"
                 name="description"
                 rows={3}
-                defaultValue={actionData?.values?.description || transaction.description || ""}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
               />
             </div>

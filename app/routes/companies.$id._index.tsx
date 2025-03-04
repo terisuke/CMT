@@ -2,15 +2,13 @@ import { LoaderFunctionArgs, json, redirect } from "@remix-run/node";
 import { useLoaderData, useNavigate } from "@remix-run/react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
-import AppLayout from "~/components/AppLayout";
-import AuthGuard from "~/components/AuthGuard";
 import { getCompanyById } from "~/utils/company.server";
 import { createServerSupabaseClient, getUserFromSession } from "~/utils/supabase.server";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const supabase = createServerSupabaseClient(request);
   
-  // getUser()メソッドを使用した認証チェック
+  // 認証チェック
   const { data: { user }, error: authError } = await getUserFromSession(request);
   
   if (authError || !user) {
@@ -41,68 +39,23 @@ export default function CompanyDetail() {
   
   if (error) {
     return (
-      <AuthGuard>
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-          <div className="bg-white p-8 shadow rounded-lg">
-            <h1 className="text-red-500 text-lg font-medium">エラー</h1>
-            <p className="mt-2 text-gray-600">{error}</p>
-            <button
-              onClick={() => navigate("/dashboard")}
-              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              ダッシュボードに戻る
-            </button>
-          </div>
-        </div>
-      </AuthGuard>
+      <div className="bg-white shadow rounded-lg p-6">
+        <div className="text-red-500">{error}</div>
+      </div>
     );
   }
   
   if (!company) {
     return (
-      <AuthGuard>
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-          <div className="bg-white p-8 shadow rounded-lg">
-            <h1 className="text-gray-900 text-lg font-medium">企業が見つかりません</h1>
-            <button
-              onClick={() => navigate("/dashboard")}
-              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              ダッシュボードに戻る
-            </button>
-          </div>
-        </div>
-      </AuthGuard>
+      <div className="bg-white shadow rounded-lg p-6">
+        <div className="text-gray-500">企業情報が見つかりません</div>
+      </div>
     );
   }
   
   return (
-    <AppLayout title={company.name} showBackButton={true} backTo="/dashboard">
+    <>
       <div className="bg-white shadow rounded-lg overflow-hidden">
-        <div className="px-6 py-5 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
-          <h3 className="text-lg leading-6 font-medium text-gray-900">{company.name}</h3>
-          <div className="flex space-x-3">
-            <button
-              onClick={() => navigate(`/companies/${company.id}/edit`)}
-              className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-            >
-              編集
-            </button>
-            <button
-              onClick={() => navigate(`/companies/${company.id}/transactions`)}
-              className="px-3 py-1 border border-transparent rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
-            >
-              取引一覧
-            </button>
-            <button
-              onClick={() => navigate(`/companies/${company.id}/financials`)}
-              className="px-3 py-1 border border-transparent rounded-md text-sm font-medium text-white bg-green-600 hover:bg-green-700"
-            >
-              財務諸表
-            </button>
-          </div>
-        </div>
-          
         <div className="px-6 py-5">
           <dl className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
             <div>
@@ -167,14 +120,22 @@ export default function CompanyDetail() {
         </div>
         
         <div className="mt-6 text-center">
-          <button
-            onClick={() => navigate(`/companies/${company.id}/transactions`)}
-            className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-          >
-            取引データを管理
-          </button>
+          <div className="flex justify-center space-x-4">
+            <button
+              onClick={() => navigate(`/companies/${company.id}/transactions`)}
+              className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              取引データを管理
+            </button>
+            <button
+              onClick={() => navigate(`/companies/${company.id}/financials`)}
+              className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+            >
+              財務諸表を表示
+            </button>
+          </div>
         </div>
       </div>
-    </AppLayout>
+    </>
   );
-}
+} 

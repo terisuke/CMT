@@ -1,8 +1,7 @@
 import { ActionFunctionArgs, json, LoaderFunctionArgs, redirect } from "@remix-run/node";
-import { Form, useActionData, useLoaderData, useNavigate } from "@remix-run/react";
+import { Form, useActionData, useNavigate, useOutletContext } from "@remix-run/react";
 import { useState } from "react";
 import AppLayout from "~/components/AppLayout";
-import { getCompanyById } from "~/utils/company.server";
 import { createServerSupabaseClient, getUserFromSession } from "~/utils/supabase.server";
 
 // ActionDataの型定義
@@ -23,10 +22,17 @@ type ActionData = {
   };
 };
 
+type OutletContextType = {
+  company: {
+    id: string;
+    name: string;
+  };
+};
+
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const supabase = createServerSupabaseClient(request);
   
-  // getUser()メソッドを使用した認証チェック
+  // 認証チェック
   const { data: { user }, error: authError } = await getUserFromSession(request);
   
   if (authError || !user) {
@@ -38,23 +44,13 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     return redirect("/dashboard");
   }
   
-  // 企業情報を取得
-  const { data: company, error: companyError } = await getCompanyById(request, companyId);
-  
-  if (companyError || !company) {
-    return json({ 
-      error: "企業情報の取得に失敗しました",
-      company: null,
-    });
-  }
-  
-  return json({ company, error: null });
+  return json({});
 }
 
 export async function action({ request, params }: ActionFunctionArgs) {
   const supabase = createServerSupabaseClient(request);
   
-  // getUser()メソッドを使用した認証チェック
+  // 認証チェック
   const { data: { user }, error: authError } = await getUserFromSession(request);
   
   if (authError || !user) {
@@ -66,217 +62,280 @@ export async function action({ request, params }: ActionFunctionArgs) {
     return redirect("/dashboard");
   }
   
+  // フォームデータの取得
   const formData = await request.formData();
-  const date = formData.get("date") as string;
-  const account = formData.get("account") as string;
-  const description = formData.get("description") as string;
-  const amountStr = formData.get("amount") as string;
-  const type = formData.get("type") as string;
+  const date = formData.get("date")?.toString();
+  const account = formData.get("account")?.toString();
+  const description = formData.get("description")?.toString();
+  const amountStr = formData.get("amount")?.toString();
+  const type = formData.get("type")?.toString();
   
   // バリデーション
-  const errors: Record<string, string> = {};
-  if (!date) errors.date = "日付は必須です";
-  if (!account) errors.account = "勘定科目は必須です";
-  if (!amountStr) errors.amount = "金額は必須です";
-  if (!type) errors.type = "取引タイプは必須です";
+  const errors: ActionData["errors"] = {};
+  const values: ActionData["values"] = {
+    date,
+    account,
+    description,
+    amount: amountStr,
+    type
+  };
   
-  // 金額の検証
+  if (!date) {
+    errors.date = "日付は必須項目です";
+  }
+  
+  if (!account) {
+    errors.account = "勘定科目は必須項目です";
+  }
+  
+  if (!amountStr) {
+    errors.amount = "金額は必須項目です";
+  }
+  
+  if (!type || !['income', 'expense', 'asset', 'liability'].includes(type)) {
+    errors.type = "有効な取引タイプを選択してください";
+  }
+  
+  // 数値変換
   let amount: number;
   try {
-    // カンマを取り除いて数値に変換
-    amount = Number(amountStr.replace(/,/g, ''));
-    if (isNaN(amount) || amount <= 0) {
-      errors.amount = "金額は正の数値を入力してください";
+    amount = amountStr ? parseFloat(amountStr) : 0;
+    if (isNaN(amount)) {
+      errors.amount = "金額には数値を入力してください";
     }
   } catch (e) {
-    errors.amount = "金額は正の数値を入力してください";
+    errors.amount = "金額には数値を入力してください";
     amount = 0;
   }
   
+  // エラーがある場合は処理を中断
   if (Object.keys(errors).length > 0) {
-    return json<ActionData>({ 
-      errors,
-      values: { date, account, description, amount: amountStr, type }
-    });
+    return json<ActionData>({ errors, values });
   }
   
-  // 取引データを登録（エラーハンドリングを強化）
-  const result = await supabase
+  // データベースに保存
+  const { data, error } = await supabase
     .from('transactions')
-    .insert({
-      company_id: companyId,
-      date,
-      account,
-      description: description || null,
-      amount,
-      type: type as 'income' | 'expense' | 'asset' | 'liability',
-      created_at: new Date().toISOString(),
-    });
+    .insert([
+      {
+        company_id: companyId,
+        date,
+        account,
+        description,
+        amount,
+        type
+      }
+    ]);
   
-  if (result.error) {
-    console.error("Transaction insert error:", result.error);
-    return json<ActionData>({ 
-      errors: { form: `取引の登録に失敗しました: ${result.error.message}` },
-      values: { date, account, description, amount: amountStr, type }
+  if (error) {
+    return json<ActionData>({
+      errors: {
+        form: "取引の保存に失敗しました: " + error.message
+      },
+      values
     });
   }
   
+  // 成功したらトランザクション一覧ページにリダイレクト
   return redirect(`/companies/${companyId}/transactions`);
 }
 
 export default function NewTransaction() {
-  const { company, error } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
+  const { company } = useOutletContext<OutletContextType>();
   const navigate = useNavigate();
-  const [isSubmitting, setIsSubmitting] = useState(false);
   
-  if (error) {
-    return (
-      <AppLayout title="エラー" showBackButton={true} backTo="/dashboard">
-        <div className="bg-red-50 p-4 rounded-md mb-6">
-          <p className="text-red-600">{error}</p>
-        </div>
-      </AppLayout>
-    );
-  }
+  const [transactionType, setTransactionType] = useState(actionData?.values?.type || "expense");
   
   return (
-    <AppLayout title={`${company?.name} - 取引を追加`} showBackButton={true} backTo={`/companies/${company?.id}/transactions`}>
-      <div className="max-w-2xl mx-auto">
-        <div className="bg-white shadow rounded-lg p-6">
-          <div className="mb-6">
-            <h2 className="text-lg font-medium text-gray-900">取引を追加</h2>
-            <p className="mt-1 text-sm text-gray-500">
-              新しい取引情報を入力してください。
-            </p>
-          </div>
+    <AppLayout title={`${company.name} - 取引追加`} showBackButton={true} backTo={`/companies/${company.id}/transactions`}>
+      <div className="bg-white shadow rounded-lg overflow-hidden">
+        <div className="px-6 py-5 border-b border-gray-200 bg-gray-50">
+          <h3 className="text-lg leading-6 font-medium text-gray-900">取引追加</h3>
+        </div>
+        
+        <div className="px-6 py-5">
+          {actionData?.errors?.form && (
+            <div className="mb-4 p-4 bg-red-50 rounded-md">
+              <p className="text-sm text-red-700">{actionData.errors.form}</p>
+            </div>
+          )}
           
-          <Form 
-            method="post" 
-            onSubmit={() => setIsSubmitting(true)}
-            className="space-y-6"
-          >
-            {actionData?.errors?.form && (
-              <div className="bg-red-50 p-4 rounded-md text-red-600 text-sm">
-                {actionData.errors.form}
-              </div>
-            )}
-            
-            <div>
-              <label htmlFor="date" className="block text-sm font-medium text-gray-700">
-                日付 <span className="text-red-500">*</span>
-              </label>
-              <input
-                id="date"
-                name="date"
-                type="date"
-                defaultValue={actionData?.values?.date || new Date().toISOString().slice(0, 10)}
-                required
-                className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${
-                  actionData?.errors?.date ? "border-red-300" : ""
-                }`}
-              />
-              {actionData?.errors?.date && (
-                <p className="mt-2 text-sm text-red-600">{actionData.errors.date}</p>
-              )}
-            </div>
-            
-            <div>
-              <label htmlFor="type" className="block text-sm font-medium text-gray-700">
-                取引タイプ <span className="text-red-500">*</span>
-              </label>
-              <select
-                id="type"
-                name="type"
-                defaultValue={actionData?.values?.type || ""}
-                required
-                className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${
-                  actionData?.errors?.type ? "border-red-300" : ""
-                }`}
-              >
-                <option value="" disabled>選択してください</option>
-                <option value="income">収益</option>
-                <option value="expense">費用</option>
-                <option value="asset">資産</option>
-                <option value="liability">負債</option>
-              </select>
-              {actionData?.errors?.type && (
-                <p className="mt-2 text-sm text-red-600">{actionData.errors.type}</p>
-              )}
-            </div>
-            
-            <div>
-              <label htmlFor="account" className="block text-sm font-medium text-gray-700">
-                勘定科目 <span className="text-red-500">*</span>
-              </label>
-              <input
-                id="account"
-                name="account"
-                type="text"
-                defaultValue={actionData?.values?.account || ""}
-                required
-                className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${
-                  actionData?.errors?.account ? "border-red-300" : ""
-                }`}
-              />
-              {actionData?.errors?.account && (
-                <p className="mt-2 text-sm text-red-600">{actionData.errors.account}</p>
-              )}
-            </div>
-            
-            <div>
-              <label htmlFor="amount" className="block text-sm font-medium text-gray-700">
-                金額 <span className="text-red-500">*</span>
-              </label>
-              <div className="mt-1 relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <span className="text-gray-500 sm:text-sm">¥</span>
+          <Form method="post">
+            <div className="space-y-6">
+              {/* 取引タイプ */}
+              <div>
+                <label htmlFor="type" className="block text-sm font-medium text-gray-700">
+                  取引タイプ
+                </label>
+                <div className="mt-1 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <div className={`border rounded-md py-3 px-3 flex items-center justify-center text-sm font-medium uppercase 
+                    ${transactionType === 'income' 
+                      ? 'bg-green-50 border-green-200 text-green-800' 
+                      : 'bg-white border-gray-200 text-gray-800 hover:bg-gray-50'}`}
+                  >
+                    <input
+                      id="type-income"
+                      name="type"
+                      type="radio"
+                      value="income"
+                      checked={transactionType === 'income'}
+                      onChange={() => setTransactionType('income')}
+                      className="sr-only"
+                    />
+                    <label htmlFor="type-income" className="cursor-pointer w-full h-full flex items-center justify-center">
+                      収益
+                    </label>
+                  </div>
+                  <div className={`border rounded-md py-3 px-3 flex items-center justify-center text-sm font-medium uppercase 
+                    ${transactionType === 'expense' 
+                      ? 'bg-red-50 border-red-200 text-red-800' 
+                      : 'bg-white border-gray-200 text-gray-800 hover:bg-gray-50'}`}
+                  >
+                    <input
+                      id="type-expense"
+                      name="type"
+                      type="radio"
+                      value="expense"
+                      checked={transactionType === 'expense'}
+                      onChange={() => setTransactionType('expense')}
+                      className="sr-only"
+                    />
+                    <label htmlFor="type-expense" className="cursor-pointer w-full h-full flex items-center justify-center">
+                      費用
+                    </label>
+                  </div>
+                  <div className={`border rounded-md py-3 px-3 flex items-center justify-center text-sm font-medium uppercase 
+                    ${transactionType === 'asset' 
+                      ? 'bg-blue-50 border-blue-200 text-blue-800' 
+                      : 'bg-white border-gray-200 text-gray-800 hover:bg-gray-50'}`}
+                  >
+                    <input
+                      id="type-asset"
+                      name="type"
+                      type="radio"
+                      value="asset"
+                      checked={transactionType === 'asset'}
+                      onChange={() => setTransactionType('asset')}
+                      className="sr-only"
+                    />
+                    <label htmlFor="type-asset" className="cursor-pointer w-full h-full flex items-center justify-center">
+                      資産
+                    </label>
+                  </div>
+                  <div className={`border rounded-md py-3 px-3 flex items-center justify-center text-sm font-medium uppercase 
+                    ${transactionType === 'liability' 
+                      ? 'bg-yellow-50 border-yellow-200 text-yellow-800' 
+                      : 'bg-white border-gray-200 text-gray-800 hover:bg-gray-50'}`}
+                  >
+                    <input
+                      id="type-liability"
+                      name="type"
+                      type="radio"
+                      value="liability"
+                      checked={transactionType === 'liability'}
+                      onChange={() => setTransactionType('liability')}
+                      className="sr-only"
+                    />
+                    <label htmlFor="type-liability" className="cursor-pointer w-full h-full flex items-center justify-center">
+                      負債
+                    </label>
+                  </div>
                 </div>
-                <input
-                  id="amount"
-                  name="amount"
-                  type="text"
-                  inputMode="numeric"
-                  defaultValue={actionData?.values?.amount || ""}
-                  placeholder="0"
-                  required
-                  className={`pl-7 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${
-                    actionData?.errors?.amount ? "border-red-300" : ""
-                  }`}
-                />
+                {actionData?.errors?.type && (
+                  <p className="mt-2 text-sm text-red-600">{actionData.errors.type}</p>
+                )}
               </div>
-              {actionData?.errors?.amount && (
-                <p className="mt-2 text-sm text-red-600">{actionData.errors.amount}</p>
-              )}
+              
+              {/* 日付 */}
+              <div>
+                <label htmlFor="date" className="block text-sm font-medium text-gray-700">日付 <span className="text-red-500">*</span></label>
+                <div className="mt-1">
+                  <input
+                    type="date"
+                    name="date"
+                    id="date"
+                    defaultValue={actionData?.values?.date}
+                    className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                  />
+                </div>
+                {actionData?.errors?.date && (
+                  <p className="mt-2 text-sm text-red-600">{actionData.errors.date}</p>
+                )}
+              </div>
+              
+              {/* 勘定科目 */}
+              <div>
+                <label htmlFor="account" className="block text-sm font-medium text-gray-700">勘定科目 <span className="text-red-500">*</span></label>
+                <div className="mt-1">
+                  <input
+                    type="text"
+                    name="account"
+                    id="account"
+                    defaultValue={actionData?.values?.account}
+                    className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                    placeholder="例: 売上、家賃、消耗品費"
+                  />
+                </div>
+                {actionData?.errors?.account && (
+                  <p className="mt-2 text-sm text-red-600">{actionData.errors.account}</p>
+                )}
+              </div>
+              
+              {/* 説明 */}
+              <div>
+                <label htmlFor="description" className="block text-sm font-medium text-gray-700">説明</label>
+                <div className="mt-1">
+                  <textarea
+                    name="description"
+                    id="description"
+                    rows={3}
+                    defaultValue={actionData?.values?.description}
+                    className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                    placeholder="取引の詳細を記入してください"
+                  />
+                </div>
+              </div>
+              
+              {/* 金額 */}
+              <div>
+                <label htmlFor="amount" className="block text-sm font-medium text-gray-700">金額 <span className="text-red-500">*</span></label>
+                <div className="mt-1 relative rounded-md shadow-sm">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <span className="text-gray-500 sm:text-sm">¥</span>
+                  </div>
+                  <input
+                    type="text"
+                    name="amount"
+                    id="amount"
+                    defaultValue={actionData?.values?.amount}
+                    className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-7 pr-12 sm:text-sm border-gray-300 rounded-md"
+                    placeholder="0"
+                    aria-describedby="amount-currency"
+                  />
+                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                    <span className="text-gray-500 sm:text-sm" id="amount-currency">JPY</span>
+                  </div>
+                </div>
+                {actionData?.errors?.amount && (
+                  <p className="mt-2 text-sm text-red-600">{actionData.errors.amount}</p>
+                )}
+              </div>
             </div>
             
-            <div>
-              <label htmlFor="description" className="block text-sm font-medium text-gray-700">
-                説明
-              </label>
-              <textarea
-                id="description"
-                name="description"
-                rows={3}
-                defaultValue={actionData?.values?.description || ""}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-              />
-            </div>
-            
-            <div className="flex justify-end space-x-3">
+            <div className="mt-8 flex justify-end space-x-3">
               <button
                 type="button"
-                onClick={() => navigate(`/companies/${company?.id}/transactions`)}
+                onClick={() => navigate(`/companies/${company.id}/transactions`)}
                 className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
                 キャンセル
               </button>
               <button
                 type="submit"
-                disabled={isSubmitting}
-                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
-                {isSubmitting ? "保存中..." : "保存"}
+                保存
               </button>
             </div>
           </Form>
@@ -284,4 +343,4 @@ export default function NewTransaction() {
       </div>
     </AppLayout>
   );
-}
+} 
