@@ -148,15 +148,15 @@ export default function FinancialStatements() {
     <>
       <div className="bg-white shadow rounded-lg overflow-hidden">
         <div className="px-6 py-5 border-b border-gray-200 bg-gray-50 flex flex-wrap justify-between items-center gap-3">
-                      <button
-              onClick={() => navigate(`/companies/${company.id}`)}
-              className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              戻る
-            </button>
+          <button
+            onClick={() => navigate(`/companies/${company.id}`)}
+            className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            戻る
+          </button>
           <h3 className="text-lg leading-6 font-medium text-gray-900">財務諸表</h3>
           <div className="flex gap-3">
             <button
@@ -196,20 +196,20 @@ export default function FinancialStatements() {
               <div className="mb-6">
                 <h3 className="text-xl font-semibold text-gray-900 mb-4">損益計算書</h3>
                 
-                {!financials?.incomeAccounts?.length && !financials?.expenseAccounts?.length ? (
+                {!financials?.incomeStatement?.revenues?.length && !financials?.incomeStatement?.expenses?.length ? (
                   <div className="text-center py-8 bg-gray-50 rounded-lg">
                     <p className="text-gray-500">取引データがありません。</p>
                   </div>
                 ) : (
                   <>
-                    {renderAccountGroup("収益", financials?.incomeAccounts || [])}
-                    {renderTotal("収益合計", financials?.totalIncome, "text-green-600")}
+                    {renderAccountGroup("収益", financials?.incomeStatement?.revenues || [])}
+                    {renderTotal("収益合計", financials?.incomeStatement?.totalRevenue, "text-green-600")}
                     
-                    {renderAccountGroup("費用", financials?.expenseAccounts || [])}
-                    {renderTotal("費用合計", financials?.totalExpense, "text-red-600")}
+                    {renderAccountGroup("費用", financials?.incomeStatement?.expenses || [])}
+                    {renderTotal("費用合計", financials?.incomeStatement?.totalExpense, "text-red-600")}
                     
-                    {renderTotal("当期純利益", financials?.netIncome, 
-                      (financials?.netIncome || 0) >= 0 ? "text-green-600" : "text-red-600")}
+                    {renderTotal("当期純利益", financials?.incomeStatement?.netIncome, 
+                      (financials?.incomeStatement?.netIncome || 0) >= 0 ? "text-green-600" : "text-red-600")}
                   </>
                 )}
               </div>
@@ -220,7 +220,7 @@ export default function FinancialStatements() {
               <div className="mb-6">
                 <h3 className="text-xl font-semibold text-gray-900 mb-4">貸借対照表</h3>
                 
-                {!financials?.assetAccounts?.length && !financials?.liabilityAccounts?.length ? (
+                {!financials?.balanceSheet?.assets?.length && !financials?.balanceSheet?.liabilities?.length ? (
                   <div className="text-center py-8 bg-gray-50 rounded-lg">
                     <p className="text-gray-500">取引データがありません。</p>
                   </div>
@@ -228,14 +228,14 @@ export default function FinancialStatements() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <h4 className="text-lg font-medium text-gray-900 mb-3">資産</h4>
-                      {renderAccountGroup("資産項目", financials?.assetAccounts || [])}
-                      {renderTotal("資産合計", financials?.totalAssets, "text-blue-600")}
+                      {renderAccountGroup("資産項目", financials?.balanceSheet?.assets || [])}
+                      {renderTotal("資産合計", financials?.balanceSheet?.totalAssets, "text-blue-600")}
                     </div>
                     
                     <div>
                       <h4 className="text-lg font-medium text-gray-900 mb-3">負債・純資産</h4>
-                      {renderAccountGroup("負債項目", financials?.liabilityAccounts || [])}
-                      {renderTotal("負債合計", financials?.totalLiabilities, "text-yellow-600")}
+                      {renderAccountGroup("負債項目", financials?.balanceSheet?.liabilities || [])}
+                      {renderTotal("負債合計", financials?.balanceSheet?.totalLiabilities, "text-yellow-600")}
                       
                       <div className="mt-6">
                         <h4 className="text-lg font-medium text-gray-900 mb-3">純資産</h4>
@@ -243,8 +243,8 @@ export default function FinancialStatements() {
                           <ul className="divide-y divide-gray-200">
                             <li className="px-6 py-4 flex items-center justify-between">
                               <div className="text-sm text-gray-900">当期純利益</div>
-                              <div className={`text-sm font-semibold ${(financials?.netIncome || 0) >= 0 ? "text-green-600" : "text-red-600"}`}>
-                                ¥{(financials?.netIncome || 0).toLocaleString()}
+                              <div className={`text-sm font-semibold ${(financials?.incomeStatement?.netIncome || 0) >= 0 ? "text-green-600" : "text-red-600"}`}>
+                                ¥{(financials?.incomeStatement?.netIncome || 0).toLocaleString()}
                               </div>
                             </li>
                           </ul>
@@ -252,7 +252,7 @@ export default function FinancialStatements() {
                       </div>
                       
                       {renderTotal("負債・純資産合計", 
-                        (financials?.totalLiabilities || 0) + (financials?.netIncome || 0), 
+                        (financials?.balanceSheet?.totalLiabilities || 0) + (financials?.incomeStatement?.netIncome || 0), 
                         "text-blue-600")}
                     </div>
                   </div>

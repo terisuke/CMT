@@ -199,6 +199,7 @@ export default function EditTransaction() {
   
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     // フォーム送信時の処理
+    setIsSubmitting(true);
   };
   
   if (actionData?.errors?.form || !transaction) {
