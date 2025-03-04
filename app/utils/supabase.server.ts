@@ -34,3 +34,12 @@ export function createServerSupabaseClient(request: Request) {
     }
   );
 }
+
+/**
+ * サーバーサイドでユーザー情報を取得する関数
+ * auth.tsxの認証方式と一致させるための関数
+ */
+export async function getUserFromSession(request: Request) {
+  const supabase = createServerSupabaseClient(request);
+  return await supabase.auth.getUser();
+}

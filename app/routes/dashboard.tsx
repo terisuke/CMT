@@ -1,12 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { LoaderFunctionArgs, json } from "@remix-run/node";
 import { useLoaderData, useNavigate } from "@remix-run/react";
-import { useAuth } from "~/context/auth";
-import { getUserCompanies } from "~/utils/company.server";
-import { createServerSupabaseClient } from "~/utils/supabase.server";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 import AppLayout from "~/components/AppLayout";
+import { useAuth } from "~/context/auth";
+import { getUserCompanies } from "~/utils/company.server";
+import { createServerSupabaseClient, getUserFromSession } from "~/utils/supabase.server";
 
 // APIから実際に返される構造に合わせた型定義
 type LoaderData = {
@@ -17,22 +17,24 @@ type LoaderData = {
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const supabase = createServerSupabaseClient(request);
-  const { data: { session } } = await supabase.auth.getSession();
   
-  if (!session?.user) {
+  // getUser()メソッドを使用した認証チェック
+  const { data: { user }, error: authError } = await getUserFromSession(request);
+  
+  if (authError || !user) {
     return json<LoaderData>({ 
       companies: [],
       userId: null
     });
   }
   
-  const { data: userCompanies, error } = await getUserCompanies(request, session.user.id);
+  const { data: userCompanies, error } = await getUserCompanies(request, user.id);
   
   if (error) {
     console.error("Error fetching companies:", error);
     return json<LoaderData>({ 
       companies: [],
-      userId: session.user.id,
+      userId: user.id,
       error: "企業データの取得に失敗しました" 
     });
   }
@@ -42,7 +44,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   
   return json<LoaderData>({ 
     companies: userCompanies || [],
-    userId: session.user.id
+    userId: user.id
   });
 }
 

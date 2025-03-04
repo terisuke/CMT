@@ -1,9 +1,9 @@
+import { ActionFunctionArgs, json, LoaderFunctionArgs, redirect } from "@remix-run/node";
+import { Form, useActionData, useLoaderData, useNavigate } from "@remix-run/react";
 import { useState } from "react";
-import { LoaderFunctionArgs, ActionFunctionArgs, json, redirect } from "@remix-run/node";
-import { Form, useLoaderData, useActionData, useNavigate } from "@remix-run/react";
 import AppLayout from "~/components/AppLayout";
-import { createServerSupabaseClient } from "~/utils/supabase.server";
 import { getCompanyById } from "~/utils/company.server";
+import { createServerSupabaseClient, getUserFromSession } from "~/utils/supabase.server";
 
 // ActionDataの型定義
 type ActionData = {
@@ -25,9 +25,11 @@ type ActionData = {
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const supabase = createServerSupabaseClient(request);
-  const { data: { session } } = await supabase.auth.getSession();
   
-  if (!session?.user) {
+  // getUser()メソッドを使用した認証チェック
+  const { data: { user }, error: authError } = await getUserFromSession(request);
+  
+  if (authError || !user) {
     return redirect("/");
   }
   
@@ -51,9 +53,11 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
 export async function action({ request, params }: ActionFunctionArgs) {
   const supabase = createServerSupabaseClient(request);
-  const { data: { session } } = await supabase.auth.getSession();
   
-  if (!session?.user) {
+  // getUser()メソッドを使用した認証チェック
+  const { data: { user }, error: authError } = await getUserFromSession(request);
+  
+  if (authError || !user) {
     return redirect("/");
   }
   
@@ -96,8 +100,8 @@ export async function action({ request, params }: ActionFunctionArgs) {
     });
   }
   
-  // 取引データを登録
-  const { error } = await supabase
+  // 取引データを登録（エラーハンドリングを強化）
+  const result = await supabase
     .from('transactions')
     .insert({
       company_id: companyId,
@@ -109,9 +113,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
       created_at: new Date().toISOString(),
     });
   
-  if (error) {
+  if (result.error) {
+    console.error("Transaction insert error:", result.error);
     return json<ActionData>({ 
-      errors: { form: "取引の登録に失敗しました" },
+      errors: { form: `取引の登録に失敗しました: ${result.error.message}` },
       values: { date, account, description, amount: amountStr, type }
     });
   }

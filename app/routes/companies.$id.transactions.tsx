@@ -1,11 +1,11 @@
-import { useState } from "react";
-import { LoaderFunctionArgs, ActionFunctionArgs, json, redirect } from "@remix-run/node";
-import { useLoaderData, useNavigate, Form, useSubmit } from "@remix-run/react";
+import { ActionFunctionArgs, json, LoaderFunctionArgs, redirect } from "@remix-run/node";
+import { useLoaderData, useNavigate, useSubmit } from "@remix-run/react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
+import { useState } from "react";
 import AppLayout from "~/components/AppLayout";
-import { createServerSupabaseClient } from "~/utils/supabase.server";
 import { getCompanyById } from "~/utils/company.server";
+import { createServerSupabaseClient, getUserFromSession } from "~/utils/supabase.server";
 
 // 取引データの型定義
 type Transaction = {
@@ -22,9 +22,11 @@ type Transaction = {
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const supabase = createServerSupabaseClient(request);
-  const { data: { session } } = await supabase.auth.getSession();
   
-  if (!session?.user) {
+  // getUser()メソッドを使用した認証チェック
+  const { data: { user }, error: authError } = await getUserFromSession(request);
+  
+  if (authError || !user) {
     return redirect("/");
   }
   
@@ -68,9 +70,11 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
 export async function action({ request, params }: ActionFunctionArgs) {
   const supabase = createServerSupabaseClient(request);
-  const { data: { session } } = await supabase.auth.getSession();
   
-  if (!session?.user) {
+  // getUser()メソッドを使用した認証チェック
+  const { data: { user }, error: authError } = await getUserFromSession(request);
+  
+  if (authError || !user) {
     return redirect("/");
   }
   

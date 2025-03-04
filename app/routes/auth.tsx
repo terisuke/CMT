@@ -17,30 +17,30 @@ export async function action({ request }: ActionFunctionArgs) {
   const formData = await request.formData();
   const action = formData.get("action");
   
+  const cookieHeader = request.headers.get('Cookie');
+  const supabaseClient = createServerClient<Database>(
+    process.env.SUPABASE_URL!,
+    process.env.SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name) {
+          return parseCookies(cookieHeader)[name];
+        },
+        set(_name, _value, _options) {
+          // Remix will handle setting cookies
+        },
+        remove(_name, _options) {
+          // Remix will handle removing cookies
+        },
+      },
+    }
+  );
+  
   if (action === "signup") {
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
     
     console.log("Signup attempt with:", email);
-    
-    const cookieHeader = request.headers.get('Cookie');
-    const supabaseClient = createServerClient<Database>(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name) {
-            return parseCookies(cookieHeader)[name];
-          },
-          set(_name, _value, _options) {
-            // Remix will handle setting cookies
-          },
-          remove(_name, _options) {
-            // Remix will handle removing cookies
-          },
-        },
-      }
-    );
 
     const { data, error } = await supabaseClient.auth.signUp({
       email,
@@ -57,6 +57,14 @@ export async function action({ request }: ActionFunctionArgs) {
     }
 
     return redirect("/dashboard");
+  } else if (action === "signout") {
+    const { error } = await supabaseClient.auth.signOut();
+    
+    if (error) {
+      return json({ error: error.message }, { status: 400 });
+    }
+    
+    return redirect("/");
   }
 
   return json({ error: "Invalid action" }, { status: 400 });

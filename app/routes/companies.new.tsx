@@ -1,9 +1,9 @@
-import { useState } from "react";
 import { ActionFunctionArgs, json, redirect } from "@remix-run/node";
 import { Form, useActionData, useNavigate } from "@remix-run/react";
-import { createServerSupabaseClient } from "~/utils/supabase.server";
-import { createCompany } from "~/utils/company.server";
+import { useState } from "react";
 import AppLayout from "~/components/AppLayout";
+import { createCompany } from "~/utils/company.server";
+import { createServerSupabaseClient, getUserFromSession } from "~/utils/supabase.server";
 
 // アクションの戻り値の型を定義
 type ActionData = {
@@ -23,9 +23,11 @@ type ActionData = {
 
 export async function action({ request }: ActionFunctionArgs) {
   const supabase = createServerSupabaseClient(request);
-  const { data: { session } } = await supabase.auth.getSession();
   
-  if (!session?.user) {
+  // getUser()メソッドを使用した認証チェック
+  const { data: { user }, error: authError } = await getUserFromSession(request);
+  
+  if (authError || !user) {
     return redirect("/");
   }
   
@@ -49,7 +51,7 @@ export async function action({ request }: ActionFunctionArgs) {
   }
   
   // 企業を作成
-  const { data, error } = await createCompany(request, session.user.id, {
+  const { data, error } = await createCompany(request, user.id, {
     name,
     business_type: businessType || null,
     representative: representative || null,

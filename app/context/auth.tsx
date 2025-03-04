@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User } from '@supabase/supabase-js';
+import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 import { supabase } from '~/utils/supabase.client';
 
 type AuthContextType = {
@@ -17,14 +17,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // セッションの初期化
     const initSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      setUser(data.session?.user || null);
+      // getUser()メソッドを使用して認証済みユーザー情報を取得
+      const { data, error } = await supabase.auth.getUser();
+      
+      if (!error && data.user) {
+        setUser(data.user);
+      } else {
+        setUser(null);
+      }
+      
       setLoading(false);
 
       // 認証状態の変更を監視
       const { data: authListener } = supabase.auth.onAuthStateChange(
-        (_event, session) => {
-          setUser(session?.user || null);
+        async (_event, session) => {
+          if (session) {
+            // 認証状態が変更された場合も、getUser()で確認
+            const { data } = await supabase.auth.getUser();
+            setUser(data.user);
+          } else {
+            setUser(null);
+          }
         }
       );
 

@@ -1,19 +1,21 @@
-import { useState } from "react";
 import { LoaderFunctionArgs, json, redirect } from "@remix-run/node";
 import { useLoaderData, useNavigate } from "@remix-run/react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
+import { useState } from "react";
 import AppLayout from "~/components/AppLayout";
-import { createServerSupabaseClient } from "~/utils/supabase.server";
+import type { AccountSummary } from "~/types/financial";
 import { getCompanyById } from "~/utils/company.server";
 import { calculateFinancialStatements } from "~/utils/financial.server";
-import type { FinancialStatements, AccountSummary } from "~/types/financial";
+import { createServerSupabaseClient, getUserFromSession } from "~/utils/supabase.server";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const supabase = createServerSupabaseClient(request);
-  const { data: { session } } = await supabase.auth.getSession();
   
-  if (!session?.user) {
+  // getUser()メソッドを使用した認証チェック
+  const { data: { user }, error: authError } = await getUserFromSession(request);
+  
+  if (authError || !user) {
     return redirect("/");
   }
   

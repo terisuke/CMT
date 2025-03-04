@@ -5,13 +5,15 @@ import { ja } from "date-fns/locale";
 import AppLayout from "~/components/AppLayout";
 import AuthGuard from "~/components/AuthGuard";
 import { getCompanyById } from "~/utils/company.server";
-import { createServerSupabaseClient } from "~/utils/supabase.server";
+import { createServerSupabaseClient, getUserFromSession } from "~/utils/supabase.server";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const supabase = createServerSupabaseClient(request);
-  const { data: { session } } = await supabase.auth.getSession();
   
-  if (!session?.user) {
+  // getUser()メソッドを使用した認証チェック
+  const { data: { user }, error: authError } = await getUserFromSession(request);
+  
+  if (authError || !user) {
     return redirect("/");
   }
   
